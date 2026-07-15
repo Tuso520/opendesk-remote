@@ -8,10 +8,10 @@ dist/
 .run/
 .upstream/
 coverage/
-bin/
-tmp/
-storage/
-artifacts/
+/bin/
+/tmp/
+/storage/
+/artifacts/
 *.log
 *.sqlite*
 *.db
