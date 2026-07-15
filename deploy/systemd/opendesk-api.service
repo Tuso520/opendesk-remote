@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenDesk Remote API
+After=network-online.target
+
+[Service]
+EnvironmentFile=/etc/opendesk/opendesk-api.env
+ExecStart=/usr/local/bin/opendesk-api
+Restart=always
+RestartSec=5
+User=opendesk
+Group=opendesk
+
+[Install]
+WantedBy=multi-user.target
+

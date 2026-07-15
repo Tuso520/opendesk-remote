@@ -1,0 +1,21 @@
+services:
+  hbbr-relay-c:
+    image: ${OPENDESK_RUSTDESK_SERVER_IMAGE:-rustdesk/rustdesk-server:latest}
+    container_name: opendesk-hbbr-relay-c
+    command: hbbr
+    environment:
+      OPENDESK_API_URL: ${OPENDESK_API_URL}
+      OPENDESK_RELAY_AUTH_REQUIRED: "true"
+      OPENDESK_RELAY_NAME: ${OPENDESK_RELAY_NAME:-hbbr-relay-c}
+      OPENDESK_RELAY_REGION: region-c
+      OPENDESK_RELAY_HEARTBEAT_URL: ${OPENDESK_API_URL}/api/v1/relays/${OPENDESK_RELAY_ID}/heartbeat
+      OPENDESK_RELAY_VALIDATE_URL: ${OPENDESK_API_URL}/api/v1/relay-grants/validate
+    ports:
+      - "21117:21117"
+      - "21119:21119"
+    volumes:
+      - relay-data:/data
+    restart: unless-stopped
+
+volumes:
+  relay-data:

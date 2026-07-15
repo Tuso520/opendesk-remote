@@ -1,0 +1,2 @@
+ALTER TABLE build_jobs
+  MODIFY COLUMN platform VARCHAR(64) NOT NULL;

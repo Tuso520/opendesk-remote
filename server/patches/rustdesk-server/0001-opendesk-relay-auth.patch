@@ -1,0 +1,231 @@
+diff --git a/src/hbbr.rs b/src/hbbr.rs
+index 4c8a784..38656a8 100644
+--- a/src/hbbr.rs
++++ b/src/hbbr.rs
+@@ -1,5 +1,6 @@
+ use clap::App;
+ mod common;
++mod opendesk_relay_auth;
+ mod relay_server;
+ use flexi_logger::*;
+ use hbb_common::{config::RELAY_PORT, ResultType};
+diff --git a/src/opendesk_relay_auth.rs b/src/opendesk_relay_auth.rs
+new file mode 100644
+index 0000000..4c81ff3
+--- /dev/null
++++ b/src/opendesk_relay_auth.rs
+@@ -0,0 +1,166 @@
++use hbb_common::{log, rendezvous_proto::RequestRelay};
++use serde_derive::{Deserialize, Serialize};
++use std::{net::SocketAddr, time::Duration};
++
++pub const RELAY_DENIED_MESSAGE: &str =
++    "Relay requires OpenDesk login or managed-device authorization";
++
++const DEFAULT_TIMEOUT_SECONDS: u64 = 3;
++
++#[derive(Serialize)]
++struct ValidateRequest<'a> {
++    grant_token: &'a str,
++    relay: &'a str,
++    target_rustdesk_id: &'a str,
++}
++
++#[derive(Deserialize)]
++struct ValidateEnvelope {
++    data: Option<ValidateData>,
++}
++
++#[derive(Deserialize)]
++struct ValidateData {
++    valid: bool,
++    reason: Option<String>,
++}
++
++#[derive(Serialize)]
++struct HeartbeatRequest<'a> {
++    current_sessions: usize,
++    status: &'a str,
++}
++
++pub async fn validate_request_relay(request: &RequestRelay, addr: SocketAddr) -> bool {
++    if !relay_auth_required() {
++        return true;
++    }
++    let token = request.token.trim();
++    if token.is_empty() {
++        log::warn!("OpenDesk relay grant missing from {}", addr);
++        return false;
++    }
++    let validate_url = match std::env::var("OPENDESK_RELAY_VALIDATE_URL") {
++        Ok(value) if !value.trim().is_empty() => value,
++        _ => {
++            log::error!("OPENDESK_RELAY_VALIDATE_URL is required when relay auth is enabled");
++            return false;
++        }
++    };
++    let relay = relay_name(request);
++    let body = ValidateRequest {
++        grant_token: token,
++        relay: &relay,
++        target_rustdesk_id: request.id.as_str(),
++    };
++    let client = match reqwest::Client::builder()
++        .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS))
++        .build()
++    {
++        Ok(client) => client,
++        Err(err) => {
++            log::error!("Failed to build OpenDesk relay auth client: {}", err);
++            return false;
++        }
++    };
++    let response = match client.post(validate_url).json(&body).send().await {
++        Ok(response) => response,
++        Err(err) => {
++            log::warn!(
++                "OpenDesk relay grant validation failed from {}: {}",
++                addr,
++                err
++            );
++            return false;
++        }
++    };
++    if !response.status().is_success() {
++        log::warn!(
++            "OpenDesk relay grant rejected from {} with status {}",
++            addr,
++            response.status()
++        );
++        return false;
++    }
++    match response.json::<ValidateEnvelope>().await {
++        Ok(envelope) => match envelope.data {
++            Some(data) if data.valid => true,
++            Some(data) => {
++                log::warn!(
++                    "OpenDesk relay grant rejected from {}: {}",
++                    addr,
++                    data.reason
++                        .unwrap_or_else(|| "invalid_relay_grant".to_owned())
++                );
++                false
++            }
++            None => {
++                log::warn!(
++                    "OpenDesk relay grant validation returned no data from {}",
++                    addr
++                );
++                false
++            }
++        },
++        Err(err) => {
++            log::warn!(
++                "OpenDesk relay grant validation decode failed from {}: {}",
++                addr,
++                err
++            );
++            false
++        }
++    }
++}
++
++pub fn heartbeat_configured() -> bool {
++    std::env::var("OPENDESK_RELAY_HEARTBEAT_URL")
++        .map(|value| !value.trim().is_empty())
++        .unwrap_or(false)
++}
++
++pub async fn send_heartbeat(current_sessions: usize, status: &str) {
++    let heartbeat_url = match std::env::var("OPENDESK_RELAY_HEARTBEAT_URL") {
++        Ok(value) if !value.trim().is_empty() => value,
++        _ => return,
++    };
++    let client = match reqwest::Client::builder()
++        .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS))
++        .build()
++    {
++        Ok(client) => client,
++        Err(err) => {
++            log::warn!("Failed to build OpenDesk relay heartbeat client: {}", err);
++            return;
++        }
++    };
++    let body = HeartbeatRequest {
++        current_sessions,
++        status,
++    };
++    if let Err(err) = client.post(heartbeat_url).json(&body).send().await {
++        log::warn!("OpenDesk relay heartbeat failed: {}", err);
++    }
++}
++
++fn relay_auth_required() -> bool {
++    match std::env::var("OPENDESK_RELAY_AUTH_REQUIRED") {
++        Ok(value) => !matches!(
++            value.trim().to_ascii_lowercase().as_str(),
++            "0" | "false" | "no" | "off"
++        ),
++        Err(_) => true,
++    }
++}
++
++fn relay_name(request: &RequestRelay) -> String {
++    std::env::var("OPENDESK_RELAY_NAME")
++        .ok()
++        .filter(|value| !value.trim().is_empty())
++        .or_else(|| {
++            std::env::var("OPENDESK_RELAY_ID")
++                .ok()
++                .filter(|value| !value.trim().is_empty())
++        })
++        .unwrap_or_else(|| request.relay_server.clone())
++}
+diff --git a/src/relay_server.rs b/src/relay_server.rs
+index 0ec190a..2f4a3a4 100644
+--- a/src/relay_server.rs
++++ b/src/relay_server.rs
+@@ -78,6 +78,7 @@ pub async fn start(port: &str, key: &str) -> ResultType<()> {
+         BLOCKLIST_FILE,
+         BLOCKLIST.read().await.len()
+     );
++    spawn_opendesk_heartbeat();
+     let port: u16 = port.parse()?;
+     log::info!("Listening on tcp :{}", port);
+     let port2 = port + 2;
+@@ -431,6 +432,15 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
+                     log::warn!("Relay authentication failed from {} - invalid key", addr);
+                     return;
+                 }
++                if !crate::opendesk_relay_auth::validate_request_relay(&rf, addr).await {
++                    log::warn!(
++                        "{} from {} for target {}",
++                        crate::opendesk_relay_auth::RELAY_DENIED_MESSAGE,
++                        addr,
++                        rf.id
++                    );
++                    return;
++                }
+                 if !rf.uuid.is_empty() {
+                     let mut peer = PEERS.lock().await.remove(&rf.uuid);
+                     if let Some(peer) = peer.as_mut() {
+@@ -461,6 +471,19 @@ async fn make_pair_(stream: impl StreamTrait, addr: SocketAddr, key: &str, limit
+     }
+ }
+ 
++fn spawn_opendesk_heartbeat() {
++    if !crate::opendesk_relay_auth::heartbeat_configured() {
++        return;
++    }
++    tokio::spawn(async move {
++        loop {
++            let current_sessions = USAGE.read().await.len();
++            crate::opendesk_relay_auth::send_heartbeat(current_sessions, "active").await;
++            sleep(60.).await;
++        }
++    });
++}
++
+ async fn relay(
+     addr: SocketAddr,
+     stream: &mut impl StreamTrait,

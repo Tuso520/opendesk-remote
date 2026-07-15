@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS system_settings (
+  setting_key VARCHAR(160) PRIMARY KEY,
+  setting_value JSON NOT NULL,
+  updated_by BIGINT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (updated_by) REFERENCES users(id)
+);

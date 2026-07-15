@@ -1,0 +1,9 @@
+:80 {
+  handle /api/* {
+    reverse_proxy opendesk-api:21114
+  }
+  handle {
+    reverse_proxy opendesk-admin:80
+  }
+}
+

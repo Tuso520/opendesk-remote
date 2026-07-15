@@ -1,0 +1,260 @@
+# Project Status
+
+Last updated: 2026-07-09
+
+## Completed in Current Workspace
+
+- M0 compliance and repository skeleton.
+- M1 API foundation:
+  - local administrator login/session endpoints
+  - signed httpOnly session cookie, Bearer token validation middleware, server-side session hashes, and logout revocation
+  - protected management and Relay Grant issuing endpoints
+  - User list/create/detail/update/disable endpoints
+  - Device list/create/detail/update/disable endpoints
+  - health, ready, version endpoints
+  - Relay Grant issue/validate/revoke with repository-backed state, replay rejection, and denied relay connection log writes
+  - Relay list/create/update/heartbeat/disable endpoints
+  - API Token list/create/revoke endpoints with one-time raw token return and hashed storage
+  - Bearer API token authentication for user-bound, unrevoked, unexpired tokens
+  - login event logs for succeeded, failed, and denied local login attempts
+  - AccessEvaluator
+  - ControlRoleEvaluator
+  - StrategyResolver
+  - BuildSpec validation
+  - local storage path validation
+  - authenticated branding asset upload with generated filenames, local storage, sha256, and asset validation
+  - in-memory API rate limit middleware with default env-based configuration
+  - repository-backed audit event writer for in-memory and MySQL stores
+  - audit writes for branding uploads, Relay Grant issue/revoke/validation failure, API token create/revoke, Build Profile/Job creation, artifact downloads, relay create/update/heartbeat/disable, user create/update/disable, device create/update/disable, user/device group changes, access rule/control role/strategy creation, and settings updates
+  - password and token hashing helpers
+  - Redis readiness PING check; production `/ready` returns 503 when Redis is unavailable
+  - MySQL migration SQL
+  - migration runner in `opendeskctl migrate`
+  - repository interface for Users, API Tokens, Sessions, Login Logs, Devices, Relays, Relay Grants, Access Rules, Control Roles, Strategies, Build Profiles, and Build Jobs
+  - in-memory repository for local development
+  - MySQL repository for Users, Devices, Relays, policy management, and relay heartbeat when `OPENDESK_MYSQL_DSN` is configured
+- M2 initial Admin foundation:
+  - Arco Design Vue integration
+  - login screen and session route guard
+  - full menu skeleton
+  - Users, Devices, Relays list/create UI wired to API
+  - User Groups, Device Groups, and Address Books list/create UI wired to API
+  - Access Rules, Control Roles, and Strategies list/create UI wired to API
+  - Logs page wired to login event, connection, file transfer, and audit log APIs
+  - Settings page wired to base system settings read/update API
+  - Settings Tokens tab wired to API token list/create/revoke API
+  - OIDC, LDAP, and SMTP settings sections wired to read/update API
+  - Logs page filter controls wired to query-parameter API filters, including `limit`, `offset`, `from`, and `to`
+  - Access evaluation preview API wired to stored Access Rules
+  - Builder page lists Build Profiles and Build Jobs and can queue Windows jobs
+  - browser-verified Admin routes for Users, Devices, Relays, and Builder
+- M3 relay integration preparation:
+  - relay heartbeat API implemented
+  - Relay Grant API supports `target_rustdesk_id`
+  - hbbr Relay Auth hook contract documented
+  - open-source rustdesk-server patch artifact added
+  - Region A/B/C compose relay auth and heartbeat environment parsed
+- M4 client builder preparation:
+  - protected Build Profile API implemented
+  - protected Build Job queue API implemented
+  - protected Build Job detail, cancel, retry, artifact list, and artifact download APIs implemented
+  - `opendesk-builder validate --spec` implemented
+  - `opendesk-builder inject --spec --out` implemented
+  - generated client injection files include Rust constants, policy JSON, branding JSON, normalized BuildSpec, and manifest
+  - open-source RustDesk client patch artifact added for `RequestRelay.token` relay grant injection
+- M4/M5 Windows runner preparation:
+  - `opendesk-builder run --platform windows_x64` implemented
+  - `opendesk-builder doctor --platform windows_x64` implemented
+  - dry-run stages generated Rust config into patched RustDesk client source
+  - configured build command execution writes `windows-runner.log`
+  - `--artifact-glob` copies matched artifacts and records SHA256 metadata
+  - API worker can claim the next queued Build Job, invoke `opendesk-builder run`, and persist job status plus returned artifact metadata
+  - API/Admin can inspect the configured build worker environment via `GET /api/v1/build-worker/doctor`
+  - Admin uses `GET/POST /api/v1/client-build-configs` for build configs, with `/api/v1/build-profiles` retained as a compatibility alias
+  - standalone `opendesk-worker run-once` command added for persistent worker execution
+
+## Verified
+
+- Project-local `.tools/go` was not present in this run; temporary Go 1.22.12 toolchain was installed under `.run/go-toolchain`.
+- `go test ./...` passes for API.
+- `go build ./cmd/opendesk-api` passes.
+- `go build ./cmd/opendeskctl` passes.
+- `go build ./cmd/opendesk-builder` passes.
+- `npm run build` passes for Admin.
+- Region A/B/C Compose config parses.
+- API local smoke test returned:
+  - health: ok
+  - unauthenticated management endpoints: 401
+  - authenticated users/devices/relays endpoints: 200
+  - authenticated build profile creation: 201
+  - authenticated Windows build job queueing: 201 with `queued` status
+- Local development services are running on this workstation:
+  - API: `http://127.0.0.1:21114/api/v1/health`
+  - Admin: `http://127.0.0.1:5173`
+- Browser verification passed:
+  - Dashboard renders with Arco layout and no console errors.
+  - Unauthenticated Admin route redirects to login.
+  - Users page reads `admin@example.com`.
+  - Users page can load, update, and disable a user through protected APIs.
+  - User Groups page creates a group with member user IDs.
+  - User Groups page adds and removes an individual member through the membership form.
+  - Devices page reads `Demo Windows Workstation`.
+  - Devices page can load, update, and disable a device through protected APIs.
+  - Device Groups page creates a group with member device IDs.
+  - Address Books page creates a shared device address book entry.
+  - Address Books page adds and removes an individual entry through the entry form.
+  - Relays page reads `remote.example.com`.
+  - Relays page can update relay host/status fields through the protected API.
+  - Relays page can disable a relay through the protected API.
+  - Relays page displays `current_sessions` and `last_health_at`.
+  - Access Control page creates an access rule and refreshes the rule table.
+  - Control Roles page creates a role with nested permissions and displays permissions as JSON.
+  - Strategies page creates a strategy with settings and assignment JSON.
+  - Logs page renders the four log tabs and login log table without console errors.
+  - Logs page displays login event status/failure metadata and filters login logs by email without console errors.
+  - Settings page renders base settings, saves them, and shows stored settings without console errors.
+  - Settings page exposes General, OIDC, LDAP, and SMTP tabs.
+  - Builder page reads Build Profiles and Build Jobs and displays a queued Windows job.
+  - Builder page auto-renders the build environment doctor table and manual Check Environment refresh.
+- Relay Grant security chain passed:
+  - issue grant
+  - validate grant once
+  - reject replayed validation
+  - repository-backed grant survives service recreation and persists `used` state
+- Relay Grant RustDesk ID chain passed:
+  - issue grant with `target_rustdesk_id=100000001`
+  - validate grant with `target_rustdesk_id=100000001`
+- Admin auth/session chain passed:
+  - no implicit default administrator is created when initial admin env is empty
+  - `GET /api/v1/setup/status` reports first-run setup state
+  - local `POST /api/v1/setup/admin` creates the first administrator and writes audit
+  - unauthenticated `GET /api/v1/users` returns 401
+  - unauthenticated `POST /api/v1/devices/register` returns 401
+  - login with initial local admin sets `opendesk_session`
+  - authenticated `GET /api/v1/users` returns 200
+  - authenticated `POST /api/v1/devices/register` creates a device and writes audit
+  - logout revokes the stored session hash; the previous Bearer session token is rejected
+- Policy management API chain passed:
+  - `POST /api/v1/access-rules` validates and creates allow/deny rules
+  - `PUT /api/v1/access-rules/{id}` updates allow/deny rules and writes audit
+  - `DELETE /api/v1/access-rules/{id}` deletes rules and writes audit
+  - `POST /api/v1/access/evaluate` returns `matched_allow_rule` for the created rule
+  - `POST /api/v1/control-roles` validates permission keys and modes, then creates nested permissions
+  - `PUT /api/v1/control-roles/{id}` replaces role permissions and writes audit
+  - `DELETE /api/v1/control-roles/{id}` deletes role permissions and the role, then writes audit
+  - `POST /api/v1/strategies` validates settings JSON and creates nested assignments
+  - `PUT /api/v1/strategies/{id}` replaces strategy assignments and writes audit
+  - `POST /api/v1/strategies/{id}/assignments` appends one assignment and writes audit
+  - `DELETE /api/v1/strategies/{id}/assignments/{assignment_id}` removes one assignment and writes audit
+  - `DELETE /api/v1/strategies/{id}` deletes strategy assignments and the strategy, then writes audit
+  - `GET /api/v1/devices/{id}/effective-strategy` previews effective settings with default secure fallback
+  - `GET /api/v1/access-rules`, `GET /api/v1/control-roles`, and `GET /api/v1/strategies` return created records
+- Relay Grant authenticated API chain passed:
+  - unauthenticated `POST /api/v1/relay-grants` returns 401
+  - authenticated session issues grant without `user_id` body field
+  - public validate endpoint accepts the issued grant with `target_rustdesk_id=100000001`
+- Relay Grant denial log chain passed:
+  - missing grant validation returns 401
+  - `GET /api/v1/logs/connections?status=denied&connection_type=relay` returns `deny_reason=relay_auth_required`
+- Relay heartbeat smoke test passed:
+  - `POST /api/v1/relays/1/heartbeat`
+  - updates `current_sessions`
+  - updates `last_health_at`
+- Region A/B/C compose config parses with relay validate and heartbeat URLs.
+- rustdesk-server patch script applies `0001-opendesk-relay-auth.patch` to
+  upstream master at `91fb928c6e9e7e61c9c8f569057e0a71b591c25b`.
+- `rustfmt --check` and `git diff --check` pass for the patched hbbr files.
+- Builder BuildSpec injection passed:
+  - `go test -count=1 ./...` in `builder`
+  - `opendesk-builder validate --spec builder/examples/buildspec.example.json`
+  - `opendesk-builder inject --spec builder/examples/buildspec.example.json --out .run/client-injection`
+  - `opendesk-builder doctor --platform windows_x64 --source .upstream/rustdesk-client --dry-run`
+  - `opendesk-builder doctor --platform windows_x64 --source .upstream/rustdesk-client --build-command "cargo build --release --features flutter" --artifact-glob "target/release/*.exe"` reports the real Windows build blockers
+- RustDesk client patch script applies `0001-opendesk-buildspec-relay-grant.patch`
+  to upstream master at `e2149974ccda5a063a2647bdd10d70da850b629b`.
+- `rustfmt --check` and `git diff --check` pass for the added client relay
+  grant files and modified client/server relay paths.
+- Windows runner smoke tests passed:
+  - dry-run stages `.run/windows-runner/injection/rust/src/opendesk_generated.rs`
+    into `.upstream/rustdesk-client/src/opendesk_generated.rs`
+  - command-mode smoke writes `.run/windows-runner-command/artifacts/windows-runner.log`
+  - artifact-glob smoke copies `OpenDeskRemote.exe` and records SHA256
+- Build API/Admin smoke passed:
+  - `POST /api/v1/client-build-configs` validates BuildSpec and creates profile; `/api/v1/build-profiles` remains a compatibility alias
+  - `GET/PUT/DELETE /api/v1/client-build-configs/{id}` provide profile detail/update/delete; delete returns 409 when jobs reference the profile
+  - `POST /api/v1/client-build-configs/{id}/jobs` creates a queued `windows_x64` job; `/api/v1/build-jobs` remains supported
+  - Builder Admin page displays the created profile and queued job
+  - Builder Admin `Run Next` completes a queued job and refreshes the job table without console errors
+  - Builder Admin job actions display Cancel, Retry, and Artifacts controls; Artifacts calls the protected API without console errors
+  - Build Job lifecycle API passed:
+    - `GET /api/v1/build-jobs/{id}`
+    - `GET /api/v1/build-jobs/{id}/logs`
+    - `POST /api/v1/build-jobs/{id}/cancel`
+    - `POST /api/v1/build-jobs/{id}/retry`
+    - `GET /api/v1/build-jobs/{id}/artifacts`
+    - authenticated artifact download returns file content with attachment header
+    - missing artifact download returns 404
+    - `GET /api/v1/build-worker/doctor`
+    - Admin build environment doctor table renders Ready in dry-run mode and shows warnings for missing CMake, Flutter, and MSVC tools
+- Audit writer tests passed:
+  - repository-backed audit writer persists events through `repository.Store`
+  - branding uploads write `upload_branding_asset`
+  - Relay Grant issue writes `issue_relay_grant`
+  - Relay Grant validation failures write `validate_relay_grant_failed`
+- Build worker smoke passed:
+  - `POST /api/v1/build-jobs/run-next` claimed a queued `windows_x64` job
+  - worker invoked local `opendesk-builder run --dry-run`
+  - job completed with `succeeded` and runner `local-worker`
+  - generated Rust config was staged into `.run/worker-source/src/opendesk_generated.rs`
+- Live MySQL smoke passed:
+  - temporary Scoop MySQL 9.7.1 instance started on `127.0.0.1:33306`
+  - `opendeskctl migrate` applied migrations against `opendesk_remote`
+  - MySQL-backed API started on `127.0.0.1:21115`
+  - login, users list, Build Profile create, Build Job create/cancel/retry, `run-next`, and artifact list all passed
+  - Access Rule CRUD, Control Role CRUD with permissions, and Strategy CRUD/assignment/effective preview passed
+  - Logs and Settings API chain passed:
+    - `GET /api/v1/logs/audit`
+    - `GET /api/v1/logs/connections`
+    - `GET /api/v1/logs/file-transfers`
+    - `GET /api/v1/logs/logins`
+    - log filters validate `limit`, `offset`, RFC3339 `from`/`to`, login `email/status`, connection `status`, and connection type
+    - `GET /api/v1/settings`
+    - `PUT /api/v1/settings`
+    - `GET/PUT /api/v1/settings/oidc`
+    - `GET/PUT /api/v1/settings/ldap`
+    - `GET/PUT /api/v1/settings/smtp`
+  - Groups and Address Books API chain passed:
+    - `POST /api/v1/user-groups`
+    - `GET /api/v1/user-groups`
+    - `GET/POST /api/v1/user-groups/{id}/members`
+    - `DELETE /api/v1/user-groups/{id}/members/{user_id}`
+    - `POST /api/v1/device-groups`
+    - `GET /api/v1/device-groups`
+    - `GET/POST /api/v1/device-groups/{id}/members`
+    - `DELETE /api/v1/device-groups/{id}/members/{device_id}`
+    - `POST /api/v1/address-books`
+    - `GET /api/v1/address-books`
+    - `GET/POST /api/v1/address-books/{id}/entries`
+    - `DELETE /api/v1/address-books/{id}/entries/{entry_id}`
+  - temporary MySQL/API processes were stopped after smoke; data remains at `C:\Users\zhou\opendesk-remote-mysql-data`
+
+## Not Complete Yet
+
+- Admin CRUD exists for initial Users, User Groups, Devices, Device Groups, Address Books, Relays, Access Rules, Control Roles, Strategies, Builder queue baseline, Logs, base Settings, OIDC/LDAP/SMTP settings, group membership, and address book entries.
+- Real rustdesk-server hbbr Relay Auth hook is available as an upstream patch file, but not yet compiled into a custom server image.
+- Real RustDesk client source consumption of generated BuildSpec files exists as an upstream patch file, but not yet compiled into custom client binaries.
+- Real platform build runners for macOS, Android, and iOS are not implemented.
+- Windows runner can stage, execute a configured command, collect artifacts, accept queued API jobs, run queued jobs through the local worker, expose administrator-protected artifact endpoints, and report build environment readiness; a real RustDesk artifact is not complete.
+- OIDC/LDAP/SMTP settings are configurable, but OIDC/LDAP login flows and 2FA are not implemented yet.
+- System-scoped API tokens with nullable `user_id` are modeled but not enabled for authentication; active API tokens are currently user-bound.
+- Relay detail GET endpoint is still an OpenAPI placeholder; relay update and disable are implemented.
+- Docker daemon was not running during this pass, so image build was not executed.
+- Real RustDesk Windows artifact builds are blocked on this workstation by missing CMake, Flutter, and MSVC `cl.exe`/`link.exe`; Rust/Cargo are available under `.tools`.
+
+## Next Work
+
+1. PR-003 continuation: install MSVC Build Tools or build hbbr in a Linux container, then compile the patched hbbr and run relay compatibility tests.
+2. PR-004 continuation: compile patched RustDesk client source and test `RequestRelay.token` population against patched hbbr.
+3. PR-005 continuation: configure real Windows RustDesk build prerequisites and produce a signed or unsigned Windows artifact.
+4. PR-005 continuation: verify artifact persistence against object storage and add real worker cancellation for running jobs.
+5. M2 continuation: add edit/delete detail views and permission-state polishing for existing management records.

@@ -1,0 +1,20 @@
+OpenDesk Remote
+Copyright (c) OpenDesk Remote contributors.
+
+This project is an independent open source project. It is not affiliated
+with, endorsed by, or sponsored by RustDesk.
+
+OpenDesk Remote is designed to be compatible with the RustDesk open source
+protocol and may contain derivative work based on RustDesk OSS components.
+RustDesk OSS and rustdesk-server are licensed under AGPL-3.0. Original
+copyright notices and license terms must be preserved when those components
+are imported.
+
+The project may later incorporate code or concepts from lejianwen/rustdesk-api,
+which is MIT licensed. If imported, original copyright and MIT license notices
+must be retained in the relevant source files and this NOTICE file.
+
+No RustDesk official logo, trademarked branding, closed-source Server Pro code,
+closed-source assets, or proprietary implementation is included in this
+repository.
+

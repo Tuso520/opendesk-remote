@@ -1,0 +1,55 @@
+{
+  "app": {
+    "name": "OpenDesk Remote",
+    "vendor": "OpenDesk",
+    "bundle_id": "com.example.opendeskremote",
+    "windows_product_name": "OpenDesk Remote",
+    "description": "Open-source self-hosted remote desktop"
+  },
+  "branding": {
+    "logo_png": "asset://logo.png",
+    "icon_ico": "asset://app.ico",
+    "icon_icns": "asset://app.icns",
+    "android_adaptive_icon": "asset://android-icon.png",
+    "ios_app_icon": "asset://ios-icon.png",
+    "tray_icon": "asset://tray.png",
+    "installer_banner": "asset://banner.png"
+  },
+  "server": {
+    "id_server": "remote.example.com:21116",
+    "relay_server": "remote.example.com:21117",
+    "relay_name": "hbbr-relay-a",
+    "api_server": "https://remote.example.com",
+    "key": "PUBLIC_KEY",
+    "websocket": true,
+    "relay_grant_required": true
+  },
+  "policy": {
+    "profile": "default-secure",
+    "override_settings": {
+      "allow-remote-config-modification": "N",
+      "enable-file-transfer": "N",
+      "enable-terminal": "N"
+    },
+    "default_settings": {
+      "verification-method": "use-both-passwords"
+    }
+  },
+  "platforms": {
+    "windows_x64": true,
+    "macos_x64": false,
+    "macos_arm64": false,
+    "android_arm64": false,
+    "ios_arm64": false
+  },
+  "signing": {
+    "windows": "bring-your-own-cert",
+    "macos": "",
+    "android": "",
+    "ios": ""
+  },
+  "source": {
+    "rustdesk_ref": "master",
+    "opendesk_patchset": "opendesk-remote-m4"
+  }
+}

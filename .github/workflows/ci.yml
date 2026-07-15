@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Test API
+        working-directory: api
+        run: |
+          go mod tidy
+          go test ./...
+      - name: Build API
+        working-directory: api
+        run: go build ./cmd/opendesk-api
+
+  builder:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build builder
+        working-directory: builder
+        run: go build ./cmd/opendesk-builder
+
+  admin:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build Admin
+        working-directory: admin
+        run: |
+          npm install
+          npm run build
+
+  migrations:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate migration files exist
+        run: test -s api/migrations/001_initial_schema.sql
+

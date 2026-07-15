@@ -1,0 +1,1731 @@
+openapi: 3.0.3
+info:
+  title: OpenDesk Remote API
+  version: 0.1.0
+  description: REST API skeleton for OpenDesk Remote control plane.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Signed session bearer token backed by a server-side session hash, or user-bound OpenDesk API token.
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: opendesk_session
+paths:
+  /api/v1/health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /api/v1/version:
+    get:
+      summary: Version
+      responses:
+        "200":
+          description: OK
+  /api/v1/ready:
+    get:
+      summary: Readiness check
+      responses:
+        "200":
+          description: Ready or degraded in development
+        "503":
+          description: Not ready because a required dependency is unavailable
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200": { description: Session issued }
+        "401": { description: Invalid credentials }
+  /api/v1/auth/logout:
+    post:
+      summary: Logout
+      responses:
+        "200": { description: Session cookie cleared and stored session hash revoked when present }
+  /api/v1/auth/me:
+    get:
+      summary: Current user
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Current user returned }
+        "401": { description: Authentication required }
+  /api/v1/setup/status:
+    get:
+      summary: First-run setup status
+      responses:
+        "200": { description: Returns whether first-run setup is required }
+  /api/v1/setup/admin:
+    post:
+      summary: Create the first local administrator
+      description: Only works when no users exist. Requires a loopback request or a valid setup token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                display_name:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                setup_token:
+                  type: string
+      responses:
+        "201": { description: Initial administrator created }
+        "400": { description: Invalid setup request }
+        "403": { description: Setup requires loopback or a valid setup token }
+        "409": { description: Setup already completed }
+  /api/v1/users:
+    get:
+      summary: List users
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Users returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create user
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "201": { description: User created }
+        "401": { description: Authentication required }
+  /api/v1/user-groups:
+    get:
+      summary: List user groups
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: User groups returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create user group
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                member_user_ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "201": { description: User group created }
+        "400": { description: Invalid user group }
+        "401": { description: Authentication required }
+  /api/v1/user-groups/{id}/members:
+    get:
+      summary: List user group member IDs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: User group member IDs returned }
+        "401": { description: Authentication required }
+        "404": { description: User group not found }
+    post:
+      summary: Add user group member
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: integer }
+      responses:
+        "201": { description: User group member added }
+        "400": { description: Invalid user group member }
+        "401": { description: Authentication required }
+        "404": { description: User group not found }
+  /api/v1/user-groups/{id}/members/{user_id}:
+    delete:
+      summary: Remove user group member
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: User group member removed }
+        "400": { description: Invalid user group member }
+        "401": { description: Authentication required }
+        "404": { description: User group not found }
+  /api/v1/devices:
+    get:
+      summary: List devices
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Devices returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create device
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "201": { description: Device created }
+        "401": { description: Authentication required }
+  /api/v1/devices/register:
+    post:
+      summary: Register device
+      responses:
+        "501": { description: Skeleton registered }
+  /api/v1/device-groups:
+    get:
+      summary: List device groups
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Device groups returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create device group
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                member_device_ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "201": { description: Device group created }
+        "400": { description: Invalid device group }
+        "401": { description: Authentication required }
+  /api/v1/device-groups/{id}/members:
+    get:
+      summary: List device group member IDs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Device group member IDs returned }
+        "401": { description: Authentication required }
+        "404": { description: Device group not found }
+    post:
+      summary: Add device group member
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id]
+              properties:
+                device_id: { type: integer }
+      responses:
+        "201": { description: Device group member added }
+        "400": { description: Invalid device group member }
+        "401": { description: Authentication required }
+        "404": { description: Device group not found }
+  /api/v1/device-groups/{id}/members/{device_id}:
+    delete:
+      summary: Remove device group member
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: device_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Device group member removed }
+        "400": { description: Invalid device group member }
+        "401": { description: Authentication required }
+        "404": { description: Device group not found }
+  /api/v1/address-books:
+    get:
+      summary: List address books
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Address books returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create address book
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                owner_user_id: { type: integer }
+                entries:
+                  type: array
+                  items:
+                    type: object
+                    required: [device_id]
+                    properties:
+                      device_id: { type: integer }
+                      alias: { type: string }
+      responses:
+        "201": { description: Address book created }
+        "400": { description: Invalid address book }
+        "401": { description: Authentication required }
+  /api/v1/address-books/{id}/entries:
+    get:
+      summary: List address book entries
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Address book entries returned }
+        "401": { description: Authentication required }
+        "404": { description: Address book not found }
+    post:
+      summary: Add address book entry
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id]
+              properties:
+                device_id: { type: integer }
+                alias: { type: string }
+      responses:
+        "201": { description: Address book entry added }
+        "400": { description: Invalid address book entry }
+        "401": { description: Authentication required }
+        "404": { description: Address book not found }
+  /api/v1/address-books/{id}/entries/{entry_id}:
+    delete:
+      summary: Remove address book entry
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: entry_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Address book entry removed }
+        "400": { description: Invalid address book entry }
+        "401": { description: Authentication required }
+        "404": { description: Address book entry not found }
+  /api/v1/access-rules:
+    get:
+      summary: List access rules
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Access rules returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create access rule
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_type, subject_id, target_type, target_id, effect]
+              properties:
+                subject_type:
+                  type: string
+                  enum: [user, user_group]
+                subject_id:
+                  type: integer
+                target_type:
+                  type: string
+                  enum: [device, device_group]
+                target_id:
+                  type: integer
+                effect:
+                  type: string
+                  enum: [allow, deny]
+                priority:
+                  type: integer
+                enabled:
+                  type: boolean
+      responses:
+        "201": { description: Access rule created }
+        "400": { description: Invalid access rule }
+        "401": { description: Authentication required }
+  /api/v1/access/evaluate:
+    post:
+      summary: Evaluate access
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, target]
+              properties:
+                user:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: { type: integer }
+                    status: { type: string }
+                    group_ids:
+                      type: array
+                      items: { type: integer }
+                target:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: { type: integer }
+                    status: { type: string }
+                    group_ids:
+                      type: array
+                      items: { type: integer }
+      responses:
+        "200": { description: Access decision returned }
+        "400": { description: Invalid access evaluation }
+        "401": { description: Authentication required }
+  /api/v1/control-roles:
+    get:
+      summary: List control roles
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Control roles returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create control role
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "201": { description: Control role created }
+        "400": { description: Invalid control role }
+        "401": { description: Authentication required }
+  /api/v1/strategies:
+    get:
+      summary: List strategies
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Strategies returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create strategy
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "201": { description: Strategy created }
+        "400": { description: Invalid strategy }
+        "401": { description: Authentication required }
+  /api/v1/relays:
+    get:
+      summary: List relays
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Relays returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create relay
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "201": { description: Relay created }
+        "401": { description: Authentication required }
+  /api/v1/relays/{id}/heartbeat:
+    post:
+      summary: Relay heartbeat
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_sessions:
+                  type: integer
+                  minimum: 0
+                status:
+                  type: string
+                  enum: [active, degraded, offline]
+      responses:
+        "200": { description: Relay heartbeat accepted }
+        "400": { description: Invalid heartbeat }
+        "404": { description: Relay not found }
+  /api/v1/relay-grants:
+    post:
+      summary: Issue Relay Grant
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                controller_device_id:
+                  type: integer
+                target_device_id:
+                  type: integer
+                target_rustdesk_id:
+                  type: string
+                relay_id:
+                  type: integer
+                allowed_relays:
+                  type: array
+                  items:
+                    type: string
+                ttl_seconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 300
+      responses:
+        "201": { description: Issued }
+        "401": { description: Authentication required }
+  /api/v1/relay-grants/validate:
+    post:
+      summary: Validate Relay Grant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grant_token]
+              properties:
+                grant_token:
+                  type: string
+                relay:
+                  type: string
+                target_device_id:
+                  type: integer
+                target_rustdesk_id:
+                  type: string
+      responses:
+        "200": { description: Valid }
+        "401": { description: Invalid }
+  /api/v1/relay-grants/{id}/revoke:
+    post:
+      summary: Revoke Relay Grant
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Revoked }
+        "401": { description: Authentication required }
+        "404": { description: Relay grant not found }
+  /api/v1/assets/branding:
+    post:
+      summary: Upload branding asset
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201": { description: Branding asset stored with generated filename and sha256 }
+        "400": { description: Invalid asset type, size, or multipart body }
+        "401": { description: Authentication required }
+  /api/v1/client-build-configs:
+    get:
+      summary: List client build configs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Client build configs returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create client build config
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [build_spec]
+              properties:
+                name:
+                  type: string
+                build_spec:
+                  type: object
+      responses:
+        "201": { description: Client build config created }
+        "400": { description: Invalid BuildSpec }
+        "401": { description: Authentication required }
+  /api/v1/client-build-configs/{id}:
+    get:
+      summary: Get client build config
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Client build config returned }
+        "401": { description: Authentication required }
+        "404": { description: Client build config not found }
+    put:
+      summary: Update client build config
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [build_spec]
+              properties:
+                name:
+                  type: string
+                build_spec:
+                  type: object
+      responses:
+        "200": { description: Client build config updated }
+        "400": { description: Invalid BuildSpec }
+        "401": { description: Authentication required }
+        "404": { description: Client build config not found }
+    delete:
+      summary: Delete client build config
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Client build config deleted }
+        "401": { description: Authentication required }
+        "404": { description: Client build config not found }
+        "409": { description: Client build config has build jobs }
+  /api/v1/build-profiles:
+    get:
+      summary: List build profiles (compatibility alias)
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Build profiles returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Create build profile (compatibility alias)
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [build_spec]
+              properties:
+                name:
+                  type: string
+                build_spec:
+                  type: object
+      responses:
+        "201": { description: Build profile created }
+        "400": { description: Invalid BuildSpec }
+        "401": { description: Authentication required }
+  /api/v1/build-jobs:
+    get:
+      summary: List build jobs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Build jobs returned }
+        "401": { description: Authentication required }
+    post:
+      summary: Queue build job
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [profile_id, platform]
+              properties:
+                profile_id:
+                  type: integer
+                platform:
+                  type: string
+                  enum: [windows_x64, macos_x64, macos_arm64, android_arm64, ios_arm64]
+      responses:
+        "201": { description: Build job queued }
+        "400": { description: Invalid build job }
+        "401": { description: Authentication required }
+        "404": { description: Build profile not found }
+  /api/v1/build-worker/doctor:
+    get:
+      summary: Inspect configured build worker environment
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Build worker doctor report returned }
+        "401": { description: Authentication required }
+        "503": { description: Build worker not configured }
+  /api/v1/build-jobs/run-next:
+    post:
+      summary: Run next queued build job
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Worker result returned }
+        "401": { description: Authentication required }
+        "503": { description: Build worker not configured }
+  /api/v1/build-jobs/{id}:
+    get:
+      summary: Get build job
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Build job returned }
+        "401": { description: Authentication required }
+        "404": { description: Build job not found }
+  /api/v1/build-jobs/{id}/cancel:
+    post:
+      summary: Cancel queued build job
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Build job canceled }
+        "401": { description: Authentication required }
+        "404": { description: Build job not found }
+        "409": { description: Build job is not cancelable }
+  /api/v1/build-jobs/{id}/retry:
+    post:
+      summary: Retry finished build job
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "201": { description: Replacement build job queued }
+        "401": { description: Authentication required }
+        "404": { description: Build job not found }
+        "409": { description: Build job is not retryable }
+  /api/v1/build-jobs/{id}/artifacts:
+    get:
+      summary: List build job artifacts
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Build artifacts returned }
+        "401": { description: Authentication required }
+        "404": { description: Build job not found }
+  /api/v1/build-artifacts/{id}/download:
+    get:
+      summary: Download build artifact
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Build artifact file }
+        "401": { description: Authentication required }
+        "404": { description: Build artifact not found }
+  /api/v1/logs/audit:
+    get:
+      summary: Audit logs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: actor_type
+          schema: { type: string, enum: [user, system, api_token] }
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: resource_type
+          schema: { type: string }
+        - in: query
+          name: resource_id
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 500 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        "200": { description: Audit logs returned }
+        "400": { description: Invalid filter }
+        "401": { description: Authentication required }
+  /api/v1/logs/connections:
+    get:
+      summary: Connection logs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [started, ended, failed, denied] }
+        - in: query
+          name: connection_type
+          schema: { type: string, enum: [direct, relay, websocket] }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 500 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        "200": { description: Connection logs returned }
+        "400": { description: Invalid filter }
+        "401": { description: Authentication required }
+  /api/v1/logs/file-transfers:
+    get:
+      summary: File transfer logs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: direction
+          schema: { type: string, enum: [upload, download] }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 500 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        "200": { description: File transfer logs returned }
+        "400": { description: Invalid filter }
+        "401": { description: Authentication required }
+  /api/v1/logs/logins:
+    get:
+      summary: Login logs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: email
+          schema: { type: string, format: email }
+        - in: query
+          name: status
+          schema: { type: string, enum: [succeeded, failed, denied] }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 500 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        "200": { description: Login logs returned }
+        "400": { description: Invalid filter }
+        "401": { description: Authentication required }
+  /api/v1/api-tokens:
+    get:
+      summary: List API tokens
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: API tokens returned without raw token or token hash }
+        "401": { description: Authentication required }
+    post:
+      summary: Create API token
+      description: Returns the raw API token once. Persistence stores only a hash.
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scopes]
+              properties:
+                name:
+                  type: string
+                scopes:
+                  type: array
+                  items: { type: string }
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        "201": { description: API token created and raw token returned once }
+        "400": { description: Invalid API token request }
+        "401": { description: Authentication required }
+  /api/v1/api-tokens/{id}/revoke:
+    post:
+      summary: Revoke API token
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: API token revoked }
+        "401": { description: Authentication required }
+        "404": { description: API token not found }
+  /api/v1/settings:
+    get:
+      summary: Settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: Settings returned }
+        "401": { description: Authentication required }
+    put:
+      summary: Update settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200": { description: Settings updated }
+        "400": { description: Invalid settings }
+        "401": { description: Authentication required }
+  /api/v1/settings/oidc:
+    get:
+      summary: OIDC settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: OIDC settings returned }
+        "401": { description: Authentication required }
+    put:
+      summary: Update OIDC settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200": { description: OIDC settings updated }
+        "400": { description: Invalid OIDC settings }
+        "401": { description: Authentication required }
+  /api/v1/settings/ldap:
+    get:
+      summary: LDAP settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: LDAP settings returned }
+        "401": { description: Authentication required }
+    put:
+      summary: Update LDAP settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200": { description: LDAP settings updated }
+        "400": { description: Invalid LDAP settings }
+        "401": { description: Authentication required }
+  /api/v1/settings/smtp:
+    get:
+      summary: SMTP settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        "200": { description: SMTP settings returned }
+        "401": { description: Authentication required }
+    put:
+      summary: Update SMTP settings
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200": { description: SMTP settings updated }
+        "400": { description: Invalid SMTP settings }
+        "401": { description: Authentication required }
+  /api/v1/users/{id}:
+    get:
+      summary: Get user
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: User returned }
+        "401": { description: Authentication required }
+        "404": { description: User not found }
+    put:
+      summary: Update user
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username]
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                display_name:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, disabled, locked]
+                mfa_enabled:
+                  type: boolean
+                source:
+                  type: string
+                  enum: [local, oidc, ldap]
+      responses:
+        "200": { description: User updated }
+        "400": { description: Invalid user }
+        "401": { description: Authentication required }
+        "404": { description: User not found }
+    delete:
+      summary: Delete or disable user
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: User deleted or disabled }
+        "401": { description: Authentication required }
+        "404": { description: User not found }
+  /api/v1/devices/{id}:
+    get:
+      summary: Get device
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Device returned }
+        "401": { description: Authentication required }
+        "404": { description: Device not found }
+    put:
+      summary: Update device
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rustdesk_id, name]
+              properties:
+                rustdesk_id:
+                  type: string
+                name:
+                  type: string
+                alias:
+                  type: string
+                owner_user_id:
+                  type: integer
+                  nullable: true
+                status:
+                  type: string
+                  enum: [online, offline, disabled]
+                platform:
+                  type: string
+                client_version:
+                  type: string
+                opendesk_client_version:
+                  type: string
+                last_ip:
+                  type: string
+      responses:
+        "200": { description: Device updated }
+        "400": { description: Invalid device }
+        "401": { description: Authentication required }
+        "404": { description: Device not found }
+  /api/v1/devices/{id}/disable:
+    post:
+      summary: Disable device
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Device disabled }
+        "401": { description: Authentication required }
+        "404": { description: Device not found }
+  /api/v1/devices/{id}/effective-strategy:
+    get:
+      summary: Get effective strategy for device
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Effective strategy returned }
+        "401": { description: Authentication required }
+        "404": { description: Device not found }
+  /api/v1/access-rules/{id}:
+    put:
+      summary: Update access rule
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_type, subject_id, target_type, target_id, effect]
+              properties:
+                subject_type:
+                  type: string
+                  enum: [user, user_group]
+                subject_id:
+                  type: integer
+                target_type:
+                  type: string
+                  enum: [device, device_group]
+                target_id:
+                  type: integer
+                effect:
+                  type: string
+                  enum: [allow, deny]
+                priority:
+                  type: integer
+                enabled:
+                  type: boolean
+      responses:
+        "200": { description: Access rule updated }
+        "400": { description: Invalid access rule }
+        "401": { description: Authentication required }
+        "404": { description: Access rule not found }
+    delete:
+      summary: Delete access rule
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Access rule deleted }
+        "401": { description: Authentication required }
+        "404": { description: Access rule not found }
+  /api/v1/control-roles/{id}:
+    put:
+      summary: Update control role
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                enabled:
+                  type: boolean
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    required: [permission_key, mode]
+                    properties:
+                      permission_key:
+                        type: string
+                      mode:
+                        type: string
+                        enum: [use_client_settings, enable, disable]
+      responses:
+        "200": { description: Control role updated }
+        "400": { description: Invalid control role }
+        "401": { description: Authentication required }
+        "404": { description: Control role not found }
+    delete:
+      summary: Delete control role
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Control role deleted }
+        "401": { description: Authentication required }
+        "404": { description: Control role not found }
+  /api/v1/strategies/{id}:
+    put:
+      summary: Update strategy
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, settings_json]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                enabled:
+                  type: boolean
+                settings_json:
+                  type: object
+                assignments:
+                  type: array
+                  items:
+                    type: object
+                    required: [target_type, target_id]
+                    properties:
+                      target_type:
+                        type: string
+                        enum: [device, user, device_group]
+                      target_id:
+                        type: integer
+      responses:
+        "200": { description: Strategy updated }
+        "400": { description: Invalid strategy }
+        "401": { description: Authentication required }
+        "404": { description: Strategy not found }
+    delete:
+      summary: Delete strategy
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Strategy deleted }
+        "401": { description: Authentication required }
+        "404": { description: Strategy not found }
+  /api/v1/strategies/{id}/assignments:
+    post:
+      summary: Assign strategy
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_id]
+              properties:
+                target_type:
+                  type: string
+                  enum: [device, user, device_group]
+                target_id:
+                  type: integer
+      responses:
+        "201": { description: Strategy assignment created }
+        "400": { description: Invalid strategy assignment }
+        "401": { description: Authentication required }
+        "404": { description: Strategy not found }
+  /api/v1/strategies/{id}/assignments/{assignment_id}:
+    delete:
+      summary: Delete strategy assignment
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: assignment_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Strategy assignment deleted }
+        "401": { description: Authentication required }
+        "404": { description: Strategy assignment not found }
+  /api/v1/relays/{id}:
+    put:
+      summary: Update relay
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, region, host]
+              properties:
+                name:
+                  type: string
+                region:
+                  type: string
+                host:
+                  type: string
+                port:
+                  type: integer
+                  default: 21117
+                ws_port:
+                  type: integer
+                  default: 21119
+                public_key_fingerprint:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, degraded, offline, disabled]
+                max_bandwidth_mbps:
+                  type: integer
+                  nullable: true
+      responses:
+        "200": { description: Relay updated }
+        "400": { description: Invalid relay }
+        "401": { description: Authentication required }
+        "404": { description: Relay not found }
+  /api/v1/relays/{id}/disable:
+    post:
+      summary: Disable relay
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Relay disabled }
+        "401": { description: Authentication required }
+        "404": { description: Relay not found }
+  /api/v1/build-profiles/{id}:
+    get:
+      summary: Get build profile
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Build profile returned }
+        "401": { description: Authentication required }
+        "404": { description: Build profile not found }
+    put:
+      summary: Update build profile
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [build_spec]
+              properties:
+                name:
+                  type: string
+                build_spec:
+                  type: object
+      responses:
+        "200": { description: Build profile updated }
+        "400": { description: Invalid BuildSpec }
+        "401": { description: Authentication required }
+        "404": { description: Build profile not found }
+    delete:
+      summary: Delete build profile
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Build profile deleted }
+        "401": { description: Authentication required }
+        "404": { description: Build profile not found }
+        "409": { description: Build profile has build jobs }
+  /api/v1/build-profiles/{id}/jobs:
+    post:
+      summary: Queue build job from profile
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform]
+              properties:
+                platform:
+                  type: string
+                  enum: [windows_x64, macos_x64, macos_arm64, android_arm64, ios_arm64]
+      responses:
+        "201": { description: Build job queued }
+        "400": { description: Invalid build job }
+        "401": { description: Authentication required }
+        "404": { description: Build profile not found }
+  /api/v1/build-jobs/{id}/logs:
+    get:
+      summary: Get build job logs
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Build job logs returned }
+        "401": { description: Authentication required }
+        "404": { description: Build job or log not found }

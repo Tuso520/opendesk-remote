@@ -1,0 +1,101 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: opendesk-mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-opendesk_remote}
+      MYSQL_USER: ${MYSQL_USER:-opendesk}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: opendesk-redis
+    command: ["redis-server", "--requirepass", "${OPENDESK_REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  opendesk-api:
+    build:
+      context: ../api
+    image: opendesk-remote/opendesk-api:${OPENDESK_IMAGE_TAG:-dev}
+    env_file:
+      - ./env/region-a.env.example
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - opendesk-storage:/var/lib/opendesk
+    ports:
+      - "21114:21114"
+    restart: unless-stopped
+
+  opendesk-admin:
+    build:
+      context: ../admin
+    image: opendesk-remote/opendesk-admin:${OPENDESK_IMAGE_TAG:-dev}
+    depends_on:
+      - opendesk-api
+    restart: unless-stopped
+
+  hbbs:
+    image: ${OPENDESK_RUSTDESK_SERVER_IMAGE:-rustdesk/rustdesk-server:latest}
+    container_name: opendesk-hbbs
+    command: hbbs -r ${OPENDESK_RELAY_PUBLIC_HOST:-127.0.0.1}:21117
+    ports:
+      - "21115:21115"
+      - "21116:21116"
+      - "21116:21116/udp"
+      - "21118:21118"
+    volumes:
+      - rustdesk-data:/data
+    restart: unless-stopped
+
+  hbbr-relay-a:
+    image: ${OPENDESK_RUSTDESK_SERVER_IMAGE:-rustdesk/rustdesk-server:latest}
+    container_name: opendesk-hbbr-relay-a
+    command: hbbr
+    environment:
+      OPENDESK_API_URL: ${OPENDESK_API_URL:-https://remote.example.com}
+      OPENDESK_RELAY_AUTH_REQUIRED: "true"
+      OPENDESK_RELAY_ID: ${OPENDESK_RELAY_A_ID:-1}
+      OPENDESK_RELAY_NAME: ${OPENDESK_RELAY_A_NAME:-hbbr-relay-a}
+      OPENDESK_RELAY_REGION: region-a
+      OPENDESK_RELAY_HEARTBEAT_URL: ${OPENDESK_API_URL:-https://remote.example.com}/api/v1/relays/${OPENDESK_RELAY_A_ID:-1}/heartbeat
+      OPENDESK_RELAY_VALIDATE_URL: ${OPENDESK_API_URL:-https://remote.example.com}/api/v1/relay-grants/validate
+    ports:
+      - "21117:21117"
+      - "21119:21119"
+    volumes:
+      - rustdesk-data:/data
+    restart: unless-stopped
+
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    container_name: opendesk-nginx
+    volumes:
+      - ./nginx/opendesk.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - opendesk-api
+      - opendesk-admin
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  redis-data:
+  opendesk-storage:
+  rustdesk-data:

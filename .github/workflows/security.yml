@@ -1,0 +1,34 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+jobs:
+  go-vuln:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run govulncheck
+        working-directory: api
+        run: govulncheck ./...
+
+  npm-audit-placeholder:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: npm audit
+        working-directory: admin
+        run: |
+          npm install
+          npm audit --audit-level=high
+
