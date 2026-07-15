@@ -1,4 +1,4 @@
-FROM golang:1.22-bookworm AS builder
+FROM golang:1.25.12-bookworm AS builder
 
 WORKDIR /src
 COPY go.mod go.sum* ./
@@ -12,4 +12,3 @@ WORKDIR /app
 COPY --from=builder /out/opendesk-api /app/opendesk-api
 EXPOSE 21114
 ENTRYPOINT ["/app/opendesk-api"]
-

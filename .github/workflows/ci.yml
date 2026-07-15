@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25.12'
       - name: Test API
         working-directory: api
         run: |
@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25.12'
       - name: Build builder
         working-directory: builder
         run: go build ./cmd/opendesk-builder
@@ -52,4 +52,3 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate migration files exist
         run: test -s api/migrations/001_initial_schema.sql
-
